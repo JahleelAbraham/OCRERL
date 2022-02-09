@@ -1,5 +1,24 @@
-﻿<h3>CodeEditor</h3>
+﻿
+<MonacoEditor Id="ocrerl-editor" ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorOnDidInit" />
 
-@code {
-    
+@code
+{
+    private StandaloneEditorConstructionOptions EditorConstructionOptions(MonacoEditor editor)
+    {
+        return new StandaloneEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            Language = "javascript",
+            Value = "function xyz() {\n" +
+                    "   console.log(\"Hello world!\");\n" +
+                    "}"
+        };
+    }
+
+    private async Task EditorOnDidInit(MonacoEditorBase editor)
+    {
+        await MonacoEditorBase.SetTheme("vs-dark");
+        
+        //MonacoEditorBase.GetModel()
+    }
 }

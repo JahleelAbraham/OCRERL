@@ -47,9 +47,7 @@
         if (result.error != null) await Output(result.error.ToString());
         else
         {
-            var res = result.tokens.Aggregate("[", (current, token) => current + $"{token}, ");
-            res += "]";
-
+            var res = result.tokens!.ToString();
             await Output(res);
         }
     }

@@ -6,10 +6,17 @@ public static class Interpreter
 {
     #region EntryPoint
     /* Entry Point */
-    public static (List<Token> tokens, Error? error) Run(string code)
+    public static (Node? tokens, Error? error) Run(string code)
     {
         var lexer = new Lexer("OCRERL/Index.erl", code); //-> Initializes a new Lexer
-        return lexer.Tokenize(); //TODO: Parse tokens instead of outputting them
+        var lResult = lexer.Tokenize();
+        
+        if(lResult.error != null) return (null, lResult.error);
+        
+        var parser = new Parser(lResult.tokens);
+        var ast = parser.Parse();
+
+        return (ast, null);
     }
     #endregion
 
@@ -17,8 +24,8 @@ public static class Interpreter
     /* Object Class for Tokens */
     public class Token
     {
-        private Tokens Type { get; set; }
-        private object? Value { get; set; }
+        public Tokens Type { get; set; }
+        public object? Value { get; set; }
 
         public Token(Tokens type, object? value = null) => (Type, Value) = (type, value); //-> Initializer for Token
 
@@ -74,14 +81,14 @@ public static class Interpreter
         }
     }
 
-    public class BinOp
+    public class BinOp : Node
     {
         private Node LeftNode { get; set; }
         private Node RightNode { get; set; }
         
         private Token OpToken { get; set; }
 
-        public BinOp(Node leftNode, Token opToken, Node rightNode) =>
+        public BinOp(Node leftNode, Token opToken, Node rightNode) : base(new Token(Tokens.BinOp)) =>
             (LeftNode, RightNode, OpToken) = (leftNode, rightNode, opToken);
 
         public override string ToString() => $"({LeftNode}, {OpToken}, {RightNode})";
@@ -242,7 +249,64 @@ public static class Interpreter
     }
     
     // Step 2: Parse the Tokens and check for Validity
-    private class Parser {}
+    private class Parser
+    {
+        public Token? CurrentToken;
+        public readonly List<Token> PTokens;
+        public int Index = -1;
+
+        public Parser(List<Token> tokens)
+        {
+            PTokens = tokens;
+            Advance();
+        }
+
+        private Token Advance()
+        {
+            Index++;
+            if (Index < PTokens.Count)
+                CurrentToken = PTokens[Index];
+
+            return CurrentToken!;
+        }
+
+        private Node? Factor()
+        {
+            var token = CurrentToken;
+
+            if (token!.Type is (Tokens.Integer or Tokens.Float))
+            {
+                Advance();
+                return new NumberNode(token);
+            }
+
+            Advance();
+            return null;
+        }
+
+        public Node Parse() => Expression();
+
+        private Node Term() => BinOperation(Factor, Tokens.Multiply, Tokens.Divide);
+
+        private Node Expression() => BinOperation(Term, Tokens.Plus, Tokens.Subtract);
+
+        private Node BinOperation(Func<Node> func, params Tokens[] tokens)
+        {
+            var left = func();
+
+            while (tokens.Contains(CurrentToken!.Type))
+            {
+                var operation = CurrentToken;
+                Advance();
+
+                var right = func();
+
+                left = new BinOp(left, operation, right);
+            }
+
+            return left;
+        }
+    }
 
     public enum Tokens
     {
@@ -261,6 +325,7 @@ public static class Interpreter
 
         // Special Tokens
         LParenthesis,
-        RParenthesis
+        RParenthesis,
+        BinOp
     }
 }

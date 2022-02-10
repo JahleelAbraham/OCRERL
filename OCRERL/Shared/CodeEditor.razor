@@ -1,8 +1,15 @@
-﻿
-<MonacoEditor Id="ocrerl-editor" ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorOnDidInit" />
+﻿@using OCRERL.Code
+
+<button class="btn btn-success" @onclick="RunCode">Run</button>
+
+<MonacoEditor Id="ocrerl-editor" @ref="_editor" ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorOnDidInit" />
+<MonacoEditor Id="ocrerl-output" @ref="_output" ConstructionOptions="EditorConstructionOptions" OnDidInit="EditorOnDidInit" />
 
 @code
 {
+    private MonacoEditor _editor { get; set; }
+    private MonacoEditor _output { get; set; }
+    
     private StandaloneEditorConstructionOptions EditorConstructionOptions(MonacoEditor editor)
     {
         return new StandaloneEditorConstructionOptions
@@ -18,7 +25,32 @@
     private async Task EditorOnDidInit(MonacoEditorBase editor)
     {
         await MonacoEditorBase.SetTheme("vs-dark");
-        
-        //MonacoEditorBase.GetModel()
+
+        if (editor.Id == _output.Id)
+        {
+            var options = new GlobalEditorOptions() { LineNumbers = "off", ReadOnly = true };
+            await _output.UpdateOptions(options);
+            await Output("Hello World!");
+        }
+    }
+
+    public async Task Output(string text)
+    {
+        await _output.SetValue($"OUTPUT:\n\n{text}");
+    }
+
+    private async Task RunCode()
+    {
+        var value = await _editor.GetValue();
+        var result = Interpreter.Run(value);
+
+        if (result.error != null) await Output(result.error.ToString());
+        else
+        {
+            var res = result.tokens.Aggregate("[", (current, token) => current + $"{token}, ");
+            res += "]";
+
+            await Output(res);
+        }
     }
 }

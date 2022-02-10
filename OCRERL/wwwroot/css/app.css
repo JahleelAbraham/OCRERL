@@ -63,6 +63,10 @@ a, .btn-link {
         content: "An error has occurred."
     }
 
-.monaco-editor-container {
+#ocrerl-editor {
     height: 500px;
+}
+
+#ocrerl-output {
+    height: 200px;
 }

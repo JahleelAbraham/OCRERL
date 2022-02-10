@@ -16,7 +16,7 @@ public static class Interpreter
         var parser = new Parser(lResult.tokens);
         var ast = parser.Parse();
 
-        return (ast, null);
+        return (ast.Node, ast.Error);
     }
     #endregion
 
@@ -27,7 +27,15 @@ public static class Interpreter
         public Tokens Type { get; set; }
         public object? Value { get; set; }
 
-        public Token(Tokens type, object? value = null) => (Type, Value) = (type, value); //-> Initializer for Token
+        public (Position Start, Position End) Pos;
+
+        public Token(Tokens type, object? value = null, (Position? start, Position? end) pos = default)
+        {
+            (Type, Value) = (type, value);
+            //-> Initializer for Token
+            if (pos.start != null) Pos = ((Position) pos.start.Clone(), ((Position) pos.start.Clone()).Advance());
+            if (pos.end != null) Pos.End = (Position) pos.end.Clone();
+        }
 
         /* Cleaner Output. [OCRERL.Code.Initializer.Token] --> Type:Value */
         public override string ToString() => Value == null ? Type.ToString() : $"{Type}:{Value}";
@@ -49,15 +57,17 @@ public static class Interpreter
         /// </summary>
         /// <param name="current">The current Character that's being analysed by the Lexer</param>
         /// <returns>The new Position</returns>
-        public void Advance(char current)
+        public Position Advance(char current = '\0')
         {
             Index++;
             Column++;
 
-            if (current != '\n') return;
+            if (current != '\n') return this;
             
             Line++;
             Column = 0;
+            
+            return this;
         }
 
         /// <summary>
@@ -106,7 +116,11 @@ public static class Interpreter
 
         public override string ToString()
         {
-            return $"{Name}: {Details}\n\tat {Pos.start.Filename}, Line {Pos.start.Line + 1}:{Pos.start.Column}";
+            var error  = $"{Name}: {Details}\n";
+                error += $"\tat {Pos.start.Filename}, Line {Pos.start.Line + 1}:{Pos.start.Column}";
+                //error += $"\n\n\t{StringWithArrows(Pos.start.FileContent, Pos.start, Pos.end)}";
+                
+            return error;
         }
     }
 
@@ -114,6 +128,13 @@ public static class Interpreter
     {
         public IllegalCharError(char character, (Position, Position) position) : base("Illegal Character",
             $"Expected 'NOT_IMPLEMENT_EXCEPTION', Found '{character}'", position) //TODO: Add expected characters
+        { }
+    }
+    
+    public class InvalidSyntaxError : Error
+    {
+        public InvalidSyntaxError(string details, (Position, Position) position) : base("Invalid Syntax",
+            details, position) //TODO: Add expected characters
         { }
     }
     #endregion
@@ -169,37 +190,37 @@ public static class Interpreter
                         }
                         case '+':
                         {
-                            tokens.Add(new Token(Tokens.Plus));         // Tokenizes the Plus
+                            tokens.Add(new Token(Tokens.Plus, null, (_pos, null)));         // Tokenizes the Plus
                             Advance();
                             break;
                         }
                         case '-':
                         {
-                            tokens.Add(new Token(Tokens.Subtract));     // Tokenizes the Minus
+                            tokens.Add(new Token(Tokens.Subtract, null, (_pos, null)));     // Tokenizes the Minus
                             Advance();
                             break;
                         }
                         case '*':
                         {
-                            tokens.Add(new Token(Tokens.Multiply));     // Tokenizes the Astrix 
+                            tokens.Add(new Token(Tokens.Multiply, null, (_pos, null)));     // Tokenizes the Astrix 
                             Advance();
                             break;
                         }
                         case '/':
                         {
-                            tokens.Add(new Token(Tokens.Divide));       // Tokenizes the Forward Slash
+                            tokens.Add(new Token(Tokens.Divide, null, (_pos, null)));       // Tokenizes the Forward Slash
                             Advance();
                             break;
                         }
                         case '(':
                         {
-                            tokens.Add(new Token(Tokens.LParenthesis));  // Tokenizes the Left Parenthesis 
+                            tokens.Add(new Token(Tokens.LParenthesis, null, (_pos, null)));  // Tokenizes the Left Parenthesis 
                             Advance();
                             break;
                         }
                         case ')':
                         {
-                            tokens.Add(new Token(Tokens.RParenthesis));  // Tokenizes the Right Parenthesis 
+                            tokens.Add(new Token(Tokens.RParenthesis, null, (_pos, null)));  // Tokenizes the Right Parenthesis 
                             Advance();
                             break;
                         }
@@ -214,6 +235,7 @@ public static class Interpreter
                 }
             }
 
+            tokens.Add(new Token(Tokens.Eof, null, (_pos, null)));
             return (tokens, null);
         }
 
@@ -225,6 +247,7 @@ public static class Interpreter
         {
             var str = "";     // Output
             var dotCount = 0; // Keeps Track of Decimal Places
+            var startPos = (Position) _pos.Clone();
 
             while (_current != '\0' && (char.IsDigit(_current) || _current == '.')) // Will continue until we reach a Unexpected Character or Null
             {
@@ -243,7 +266,9 @@ public static class Interpreter
             }
 
             /* Create a new Number token and Parse the Output to a C# Number */
-            return dotCount == 0 ? new Token(Tokens.Integer, int.Parse(str)) : new Token(Tokens.Float, float.Parse(str));
+            return dotCount == 0
+                ? new Token(Tokens.Integer, int.Parse(str), (startPos, _pos))
+                : new Token(Tokens.Float, float.Parse(str), (startPos, _pos));
         }
 
     }
@@ -261,50 +286,99 @@ public static class Interpreter
             Advance();
         }
 
-        private Token Advance()
+        private Token? Advance()
         {
             Index++;
-            if (Index < PTokens.Count)
-                CurrentToken = PTokens[Index];
+            if (Index < PTokens.Count) CurrentToken = PTokens[Index];
 
-            return CurrentToken!;
+            return CurrentToken;
         }
 
-        private Node? Factor()
+        public ParserResult Parse()
         {
+            var res = Expression();
+
+            if (res.Error is not null && CurrentToken!.Type is not Tokens.Eof)
+                return res.Failure(new InvalidSyntaxError("Expected '+', '-', '*' or '/'", CurrentToken.Pos));
+
+            return res;
+        }
+        
+        private ParserResult Factor()
+        {
+            var res = new ParserResult();
             var token = CurrentToken;
 
-            if (token!.Type is (Tokens.Integer or Tokens.Float))
-            {
-                Advance();
-                return new NumberNode(token);
-            }
+            if (token!.Type is not (Tokens.Integer or Tokens.Float))
+                return res.Failure(new InvalidSyntaxError($"Expected Integer or Float. Found {token}",
+                    (token.Pos.Start, token.Pos.End)));
+            
+            res.Register(Advance()!);
+            return res.Success(new NumberNode(token));
 
-            Advance();
-            return null;
         }
+        
+        private ParserResult Term() => BinOperation(Factor, Tokens.Multiply, Tokens.Divide);
 
-        public Node Parse() => Expression();
+        private ParserResult Expression() => BinOperation(Term, Tokens.Plus, Tokens.Subtract);
 
-        private Node Term() => BinOperation(Factor, Tokens.Multiply, Tokens.Divide);
-
-        private Node Expression() => BinOperation(Term, Tokens.Plus, Tokens.Subtract);
-
-        private Node BinOperation(Func<Node> func, params Tokens[] tokens)
+        private ParserResult BinOperation(Func<ParserResult> func, params Tokens[] tokens)
         {
-            var left = func();
+            var res = new ParserResult();
+            var left = res.Register(func()).Node;
+
+            if (res.Error != null) return res;
 
             while (tokens.Contains(CurrentToken!.Type))
             {
                 var operation = CurrentToken;
-                Advance();
+                res.Register(Advance()!);
 
-                var right = func();
+                var right =  res.Register(func());
+                
+                if (res.Error != null) return res;
 
-                left = new BinOp(left, operation, right);
+                left = new BinOp(left!, operation, right.Node!);
             }
 
-            return left;
+            return res.Success(left!);
+        }
+    }
+
+    private class ParserResult
+    {
+        public Token? Token;
+        public Node? Node;
+        public Error? Error;
+
+        public ParserResult() => (Node, Error) = (null, null);
+
+        public ParserResult Register(dynamic result)
+        {
+            if (result.GetType() == typeof(ParserResult))
+            {
+                var res = (ParserResult) result;
+                if (res.Error != null) Error = res.Error;
+                Node = res.Node;
+            }
+            else if (result.GetType() == typeof(Token))
+            {
+                Token = (Token) result;
+            }
+
+            return result;
+        }
+        
+        public ParserResult Success(Node node)
+        {
+            Node = node;
+            return this;
+        }
+
+        public ParserResult Failure(Error error)
+        {
+            Error = error;
+            return this;
         }
     }
 
@@ -326,6 +400,41 @@ public static class Interpreter
         // Special Tokens
         LParenthesis,
         RParenthesis,
+        Eof,
         BinOp
+    }
+    
+    //-> Extensions
+    public static string StringWithArrows(string text, Position start, Position end) //TODO: Find out why this crashes
+    {
+        var result = "";
+ 
+        // Calculate indices
+        var iStart = Math.Max(text.LastIndexOf('\n', 0, start.Index), 0);
+        var iEnd = text.IndexOf('\n', iStart + 1);
+        
+        if (iEnd < 0) iEnd = text.Length;
+    
+        // Generate each line
+        var lCount = end.Line - start.Line + 1;
+
+        for (var i = 0; i < lCount; i++)
+        { 
+            // Calculate line columns
+            var line = text.Substring(iStart, iEnd);
+            var cStart = i == 0 ? start.Column : 0;
+            var cEnd = i == lCount - 1 ? end.Column : line.Length - 1;
+
+            // Append to result
+            result += line + '\n';
+            result += ' ' * cStart + '^' * (cStart - cEnd);
+
+            // Re-calculate indices
+            iStart = iEnd;
+            iEnd = text.IndexOf('\n', iStart + 1);
+            if (iEnd < 0) iEnd = text.Length;
+        }
+
+        return result.Replace("\t", "");
     }
 }

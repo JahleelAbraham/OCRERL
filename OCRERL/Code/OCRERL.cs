@@ -4,13 +4,16 @@ namespace OCRERL.Code;
 
 public static class Interpreter
 {
+    #region EntryPoint
     /* Entry Point */
     public static (List<Token> tokens, Error? error) Run(string code)
     {
         var lexer = new Lexer("OCRERL/Index.erl", code); //-> Initializes a new Lexer
         return lexer.Tokenize(); //TODO: Parse tokens instead of outputting them
     }
-    
+    #endregion
+
+    #region Definitions
     /* Object Class for Tokens */
     public class Token
     {
@@ -22,7 +25,6 @@ public static class Interpreter
         /* Cleaner Output. [OCRERL.Code.Initializer.Token] --> Type:Value */
         public override string ToString() => Value == null ? Type.ToString() : $"{Type}:{Value}";
     }
-
     public class Position : ICloneable
     {
         public int Index { get; set; }            //-> Character Index
@@ -40,17 +42,15 @@ public static class Interpreter
         /// </summary>
         /// <param name="current">The current Character that's being analysed by the Lexer</param>
         /// <returns>The new Position</returns>
-        public Position Advance(char current)
+        public void Advance(char current)
         {
             Index++;
             Column++;
 
-            if (current != '\n') return this;
+            if (current != '\n') return;
             
             Line++;
             Column = 0;
-
-            return this;
         }
 
         /// <summary>
@@ -60,6 +60,59 @@ public static class Interpreter
         public object Clone() => new Position(Index, Line, Column, Filename, FileContent);
     }
 
+    public class Node
+    {
+        public Token Token { get; set; }
+        public Node(Token token) => Token = token;
+
+        public override string ToString() => Token.ToString();
+    }
+    public class NumberNode : Node
+    {
+        public NumberNode(Token token) : base(token)
+        {
+        }
+    }
+
+    public class BinOp
+    {
+        private Node LeftNode { get; set; }
+        private Node RightNode { get; set; }
+        
+        private Token OpToken { get; set; }
+
+        public BinOp(Node leftNode, Token opToken, Node rightNode) =>
+            (LeftNode, RightNode, OpToken) = (leftNode, rightNode, opToken);
+
+        public override string ToString() => $"({LeftNode}, {OpToken}, {RightNode})";
+    }
+
+    #region ErrorDefinitions
+    /* Allows for error categorisation */
+    public class Error
+    {
+        private string Name { get; set; }
+        private string Details { get; set; }
+        public (Position start, Position end) Pos { get; set; }
+
+        protected Error(string name, string details, (Position, Position) pos) => (Name, Details, Pos) = (name, details, pos);
+
+        public override string ToString()
+        {
+            return $"{Name}: {Details}\n\tat {Pos.start.Filename}, Line {Pos.start.Line + 1}:{Pos.start.Column}";
+        }
+    }
+
+    public class IllegalCharError : Error
+    {
+        public IllegalCharError(char character, (Position, Position) position) : base("Illegal Character",
+            $"Expected 'NOT_IMPLEMENT_EXCEPTION', Found '{character}'", position) //TODO: Add expected characters
+        { }
+    }
+    #endregion
+    #endregion
+    
+    // Step 1: Tokenize the Code
     private class Lexer
     {
         private static string _code = ""; //TODO: Output 'Help' prompt by default
@@ -187,28 +240,9 @@ public static class Interpreter
         }
 
     }
-
-    /* Allows for error categorisation */
-    public class Error
-    {
-        private string Name { get; set; }
-        private string Details { get; set; }
-        public (Position start, Position end) Pos { get; set; }
-
-        protected Error(string name, string details, (Position, Position) pos) => (Name, Details, Pos) = (name, details, pos);
-
-        public override string ToString()
-        {
-            return $"{Name}: {Details}\n\tat {Pos.start.Filename}, Line {Pos.start.Line + 1}:{Pos.start.Column}";
-        }
-    }
-
-    public class IllegalCharError : Error
-    {
-        public IllegalCharError(char character, (Position, Position) position) : base("Illegal Character",
-            $"Expected 'NOT_IMPLEMENT_EXCEPTION', Found '{character}'", position) //TODO: Add expected characters
-        { }
-    }
+    
+    // Step 2: Parse the Tokens and check for Validity
+    private class Parser {}
 
     public enum Tokens
     {

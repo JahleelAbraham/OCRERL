@@ -1,0 +1,5 @@
+﻿# OCR ERL Grammar Table
+
+Expression   : Term ((PLUS|SUBTRACT) Term)*
+Term         : Factor ((MULTIPLY|DIVIDE) Factor)*
+Factor       : INT|FLOAT

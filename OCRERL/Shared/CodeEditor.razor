@@ -42,12 +42,12 @@
     private async Task RunCode()
     {
         var value = await _editor.GetValue();
-        var result = Compiler.Run(value);
+        var (tokens, error) = EntryPoint.Run(value);
 
-        if (result.error != null) await Output(result.error.ToString());
+        if (error != null) await Output(error.ToString());
         else
         {
-            var res = result.tokens!.ToString();
+            var res = tokens!.ToString();
             await Output(res);
         }
     }

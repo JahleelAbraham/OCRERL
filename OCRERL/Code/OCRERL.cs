@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Reflection;
 
 namespace OCRERL.Code;
 
-public static class Interpreter
+public static class Compiler
 {
     #region EntryPoint
     /* Entry Point */
@@ -15,6 +16,12 @@ public static class Interpreter
         
         var parser = new Parser(lResult.tokens);
         var ast = parser.Parse();
+
+        if (ast.Error != null) return (null, ast.Error);
+        
+        // Run Program
+        var interpreter = new Interpreter();
+        interpreter.Visit(ast.Node!);
 
         return (ast.Node, ast.Error);
     }
@@ -91,17 +98,27 @@ public static class Interpreter
         }
     }
 
-    public class BinOp : Node
+    public class BinaryOp : Node
     {
-        private Node LeftNode { get; set; }
-        private Node RightNode { get; set; }
+        public Node LeftNode { get; set; }
+        public Node RightNode { get; set; }
         
-        private Token OpToken { get; set; }
+        public Token OpToken { get; set; }
 
-        public BinOp(Node leftNode, Token opToken, Node rightNode) : base(new Token(Tokens.BinOp)) =>
+        public BinaryOp(Node leftNode, Token opToken, Node rightNode) : base(new Token(Tokens.BinOp)) =>
             (LeftNode, RightNode, OpToken) = (leftNode, rightNode, opToken);
 
         public override string ToString() => $"({LeftNode}, {OpToken}, {RightNode})";
+    }
+
+    public class UnaryOp : Node
+    {
+        private Token OpToken { get; set; }
+        public Node Node { get; set; }
+
+        public UnaryOp(Token opToken, Node node) : base(new Token(Tokens.UnOp)) => (OpToken, Node) = (opToken, node);
+
+        public override string ToString() => $"({OpToken}, {Node})";
     }
 
     #region ErrorDefinitions
@@ -140,6 +157,7 @@ public static class Interpreter
     #endregion
     #endregion
     
+    #region Lexer
     // Step 1: Tokenize the Code
     private class Lexer
     {
@@ -272,7 +290,9 @@ public static class Interpreter
         }
 
     }
-    
+    #endregion
+
+    #region Parser
     // Step 2: Parse the Tokens and check for Validity
     private class Parser
     {
@@ -298,7 +318,7 @@ public static class Interpreter
         {
             var res = Expression();
 
-            if (res.Error is not null && CurrentToken!.Type is not Tokens.Eof)
+            if (res.Error is null && CurrentToken!.Type is not Tokens.Eof)
                 return res.Failure(new InvalidSyntaxError("Expected '+', '-', '*' or '/'", CurrentToken.Pos));
 
             return res;
@@ -309,13 +329,43 @@ public static class Interpreter
             var res = new ParserResult();
             var token = CurrentToken;
 
-            if (token!.Type is not (Tokens.Integer or Tokens.Float))
-                return res.Failure(new InvalidSyntaxError($"Expected Integer or Float. Found {token}",
-                    (token.Pos.Start, token.Pos.End)));
-            
-            res.Register(Advance()!);
-            return res.Success(new NumberNode(token));
+            if (token!.Type is Tokens.Plus or Tokens.Subtract)
+            {
+                res.Register(Advance()!);
 
+                var factor = res.Register(Factor());
+
+                if (res.Error is not null) return res;
+                
+                var resS = res.Success(new UnaryOp(token, factor.Node!));
+
+                return resS;
+            }
+            if (token!.Type is Tokens.Integer or Tokens.Float)
+            {
+                res.Register(Advance()!);
+                return res.Success(new NumberNode(token));
+            }
+
+            if (token!.Type is Tokens.LParenthesis)
+            {
+                res.Register(Advance()!);
+                var expression = res.Register(Expression());
+
+                if (res.Error is not null) return res;
+
+                if (CurrentToken!.Type is Tokens.RParenthesis)
+                {
+                    res.Register(Advance()!);
+                    return res.Success(expression.Node!);
+                }
+
+                return res.Failure(new InvalidSyntaxError($"Expected ')'. Found {token}",
+                    (token.Pos.Start, token.Pos.End)));
+            }
+
+            return res.Failure(new InvalidSyntaxError($"Expected Integer or Float. Found {token}",
+                (token.Pos.Start, token.Pos.End)));
         }
         
         private ParserResult Term() => BinOperation(Factor, Tokens.Multiply, Tokens.Divide);
@@ -338,13 +388,12 @@ public static class Interpreter
                 
                 if (res.Error != null) return res;
 
-                left = new BinOp(left!, operation, right.Node!);
+                left = new BinaryOp(left!, operation, right.Node!);
             }
 
             return res.Success(left!);
         }
     }
-
     private class ParserResult
     {
         public Token? Token;
@@ -384,6 +433,45 @@ public static class Interpreter
         }
     }
 
+    #endregion
+
+    // Step 3: Interpret the Parsed Tokens
+    public class Interpreter
+    {
+        public void Visit(Node node)
+        {
+            var methodName = $"Visit{node.GetType().Name}";
+            var method = GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic, null,
+                new Type[] { typeof(Node) }, null);
+            
+            if (method is null) NoVisitMethod(node);
+            else method.Invoke(this, new object?[]{node}); //TODO: Figure out return value
+        }
+
+        private static void NoVisitMethod(Node node)
+        {
+            throw new Exception($"Visit Method Visit{node.GetType().Name} not found!");
+        }
+
+        private void VisitBinaryOp(Node rawNode)
+        {
+            var node = (BinaryOp)rawNode;
+            
+            Console.WriteLine("Found BinaryOp Node!");
+            Visit(node.LeftNode);
+            Visit(node.RightNode);
+        }
+
+        private void VisitUnaryOp(Node rawNode)
+        {
+            var node = (UnaryOp)rawNode;
+            
+            Console.WriteLine("Found UnaryOp Node!");
+            Visit(node.Node);
+        }
+        private void VisitNumberNode(Node node) { Console.WriteLine("Found Number Node!"); }
+    }
+    
     public enum Tokens
     {
         // OCR Defined Types
@@ -403,7 +491,8 @@ public static class Interpreter
         LParenthesis,
         RParenthesis,
         Eof,
-        BinOp
+        BinOp,
+        UnOp
     }
     
     //-> Extensions

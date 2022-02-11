@@ -42,7 +42,7 @@
     private async Task RunCode()
     {
         var value = await _editor.GetValue();
-        var result = Interpreter.Run(value);
+        var result = Compiler.Run(value);
 
         if (result.error != null) await Output(result.error.ToString());
         else

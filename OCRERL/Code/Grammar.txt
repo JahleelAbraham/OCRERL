@@ -3,3 +3,5 @@
 Expression   : Term ((PLUS|SUBTRACT) Term)*
 Term         : Factor ((MULTIPLY|DIVIDE) Factor)*
 Factor       : INT|FLOAT
+             : (PLUS|SUBTRACT) Factor
+             : LPARENTHESIS Expression RPARENTHESIS

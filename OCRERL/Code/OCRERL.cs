@@ -360,13 +360,15 @@ public static class Interpreter
                 var res = (ParserResult) result;
                 if (res.Error != null) Error = res.Error;
                 Node = res.Node;
+                return result;
             }
-            else if (result.GetType() == typeof(Token))
+            if (result.GetType() == typeof(Token))
             {
                 Token = (Token) result;
+                return this;
             }
 
-            return result;
+            return this; //TODO: Something went wrong??
         }
         
         public ParserResult Success(Node node)

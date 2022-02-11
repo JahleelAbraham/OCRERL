@@ -28,7 +28,7 @@
 
         if (editor.Id == _output.Id)
         {
-            var options = new GlobalEditorOptions() { LineNumbers = "off", ReadOnly = true };
+            var options = new GlobalEditorOptions { LineNumbers = "off", ReadOnly = true };
             await _output.UpdateOptions(options);
             await Output("Hello World!");
         }

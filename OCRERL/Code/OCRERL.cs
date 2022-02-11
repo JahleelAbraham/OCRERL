@@ -1,5 +1,4 @@
-﻿using OCRERL.Code.Definitions;
-using OCRERL.Code.Definitions.Errors;
+﻿using OCRERL.Code.Definitions.Errors;
 using OCRERL.Code.Definitions.Nodes;
 
 namespace OCRERL.Code;

@@ -1,6 +1,7 @@
+using OCRERL.Code.Definitions;
 using OCRERL.Code.Definitions.Errors;
 
-namespace OCRERL.Code.Definitions;
+namespace OCRERL.Code;
 
 public class Lexer
 {

@@ -1,7 +1,7 @@
 using System.Reflection;
 using OCRERL.Code.Definitions.Nodes;
 
-namespace OCRERL.Code.Definitions;
+namespace OCRERL.Code;
 
 public class Interpreter
 {

@@ -7,7 +7,7 @@ public class BinaryOp : Node
 
     public Token OpToken;
 
-    public BinaryOp(Node leftNode, Token opToken, Node rightNode) : base(new Token(Tokens.BinOp)) =>
+    public BinaryOp(Node leftNode, Token opToken, Node rightNode) : base(new Token(Tokens.BinOp), leftNode.Position.Start, rightNode.Position.End) =>
         (LeftNode, RightNode, OpToken) = (leftNode, rightNode, opToken);
 
     public override string ToString() => $"({LeftNode}, {OpToken}, {RightNode})";

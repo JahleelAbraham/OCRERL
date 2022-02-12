@@ -78,6 +78,11 @@ public class Lexer
                         Advance();
                         break;
                     }
+                    case '^':
+                    {
+                        tokens.Add(new Token(Tokens.Exponent, null, (_pos, null)));
+                        break;
+                    }
                     case '(':
                     {
                         tokens.Add(new Token(Tokens.LParenthesis, null,

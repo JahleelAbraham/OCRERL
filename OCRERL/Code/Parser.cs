@@ -29,7 +29,7 @@ public class Parser
         var res = Expression();
 
         if (res.Error is null && CurrentToken!.Type is not Tokens.Eof)
-            return res.Failure(new InvalidSyntaxError("Expected '+', '-', '*' or '/'", CurrentToken.Pos));
+            return res.Failure(new InvalidSyntaxError("Expected '+', '-', '*', '^' or '/'", CurrentToken.Pos));
 
         return res;
     }

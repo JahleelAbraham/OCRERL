@@ -1,12 +1,13 @@
-﻿using OCRERL.Code.Definitions.Errors;
-using OCRERL.Code.Definitions.Nodes;
+﻿using OCRERL.Code.Definitions;
+using OCRERL.Code.Definitions.Errors;
+using OCRERL.Code.Definitions.Types;
 
 namespace OCRERL.Code;
 
 public static class EntryPoint
 {
     /* Entry Point */
-    public static (Node? tokens, Error? error) Run(string code)
+    public static (Number? result, Error? error) Run(string code)
     {
         var lexer = new Lexer("OCRERL/Index.erl", code); //-> Initializes a new Lexer
         var lResult = lexer.Tokenize();
@@ -20,8 +21,11 @@ public static class EntryPoint
         
         // Run Program
         var interpreter = new Interpreter();
-        interpreter.Visit(ast.Node!);
 
-        return (ast.Node, ast.Error);
+        var context = new Context("<OCRERL>");
+        
+        var result = (RuntimeResult) interpreter.Visit(ast.Node!, context)!;
+
+        return ((Number) result.Value!, result.Error);
     }
 }

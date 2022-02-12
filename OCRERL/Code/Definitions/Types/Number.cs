@@ -1,14 +1,19 @@
+using OCRERL.Code.Definitions.Errors;
+
 namespace OCRERL.Code.Definitions.Types;
 
-public class Number
+public class Number : Type<Number>
 {
-    public Position Position;
-    public int Value;
-
-    public Number(int value)
-    {
-        Value = value;
-    }
+    public Number(object value) : base(value) { }
     
-    public void SetPosition(Position newPos) {}
+    // Arithmetic
+    public (Number?, Error?) AddedTo(Type<Number> other) => (new Number(Value + other.Value).SetContext(Context), null);
+    public (Number?, Error?) SubtractedBy(Type<Number> other) => (new Number(Value - other.Value).SetContext(Context), null);
+    public (Number?, Error?) MultipliedBy(Type<Number> other) => (new Number(Value * other.Value).SetContext(Context), null);
+
+    public (Number?, Error?) DividedBy(Type<Number> other)
+    {
+        if (other.Value == 0) return (null, new RuntimeError("Division by 0 (Zero)", other.Position!, Context));
+        return (new Number(Value / other.Value).SetContext(Context), null);
+    }
 }

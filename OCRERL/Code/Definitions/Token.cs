@@ -3,8 +3,8 @@ namespace OCRERL.Code.Definitions;
     /* Object Class for Tokens */
 public class Token
 {
-    public Tokens Type { get; set; }
-    public object? Value { get; set; }
+    public readonly Tokens Type;
+    public readonly object? Value;
 
     public (Position Start, Position End) Pos;
 
@@ -34,6 +34,7 @@ public enum Tokens
     Subtract,
     Multiply,
     Divide,
+    Exponent,
 
     // Special Tokens
     LParenthesis,

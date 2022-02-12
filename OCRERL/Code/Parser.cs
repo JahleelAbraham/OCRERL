@@ -34,24 +34,11 @@ public class Parser
         return res;
     }
 
-    private ParserResult Factor()
+    private ParserResult Numeral()
     {
         var res = new ParserResult();
         var token = CurrentToken;
-
-        if (token!.Type is Tokens.Plus or Tokens.Subtract)
-        {
-            res.Register(Advance()!);
-
-            var factor = res.Register(Factor());
-
-            if (res.Error is not null) return res;
-
-            var resS = res.Success(new UnaryOp(token, factor.Node!));
-
-            return resS;
-        }
-
+        
         if (token!.Type is Tokens.Integer or Tokens.Float)
         {
             res.Register(Advance()!);
@@ -74,19 +61,44 @@ public class Parser
             return res.Failure(new InvalidSyntaxError($"Expected ')'. Found {token}",
                 (token.Pos.Start, token.Pos.End)));
         }
-
-        return res.Failure(new InvalidSyntaxError($"Expected Integer or Float. Found {token}",
+        
+        return res.Failure(new InvalidSyntaxError($"Expected '+', '-' or '('. Found {token}",
             (token.Pos.Start, token.Pos.End)));
     }
 
-    private ParserResult Term() => BinOperation(Factor, Tokens.Multiply, Tokens.Divide);
+    private ParserResult Indices() => BinOperation(Numeral, Factor, Tokens.Exponent);
 
-    private ParserResult Expression() => BinOperation(Term, Tokens.Plus, Tokens.Subtract);
-
-    private ParserResult BinOperation(Func<ParserResult> func, params Tokens[] tokens)
+    private ParserResult Factor()
     {
         var res = new ParserResult();
-        var left = res.Register(func()).Node;
+        var token = CurrentToken;
+
+        if (token!.Type is Tokens.Plus or Tokens.Subtract)
+        {
+            res.Register(Advance()!);
+
+            var factor = res.Register(Factor());
+
+            if (res.Error is not null) return res;
+
+            var resS = res.Success(new UnaryOp(token, factor.Node!));
+
+            return resS;
+        }
+
+        return Indices();
+    }
+
+    private ParserResult Term() => BinOperation(Factor, null, Tokens.Multiply, Tokens.Divide);
+
+    private ParserResult Expression() => BinOperation(Term, null, Tokens.Plus, Tokens.Subtract);
+
+    private ParserResult BinOperation(Func<ParserResult> funcA, Func<ParserResult>? funcB, params Tokens[] tokens)
+    {
+        funcB ??= funcA;
+        
+        var res = new ParserResult();
+        var left = res.Register(funcA()).Node;
 
         if (res.Error != null) return res;
 
@@ -95,7 +107,7 @@ public class Parser
             var operation = CurrentToken;
             res.Register(Advance()!);
 
-            var right = res.Register(func());
+            var right = res.Register(funcB());
 
             if (res.Error != null) return res;
 

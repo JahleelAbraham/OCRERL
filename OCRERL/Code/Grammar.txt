@@ -1,7 +1,13 @@
 ﻿# OCR ERL Grammar Table
 
 Expression   : Term ((PLUS|SUBTRACT) Term)*
+
 Term         : Factor ((MULTIPLY|DIVIDE) Factor)*
-Factor       : INT|FLOAT
-             : (PLUS|SUBTRACT) Factor
+
+Factor       : (PLUS|SUBTRACT) Factor
+             : Numeral
+                       
+Indices      : Numeral (EXPONENT Factor)*
+             
+Numeral      : INT|FLOAT
              : LPARENTHESIS Expression RPARENTHESIS

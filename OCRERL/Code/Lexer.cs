@@ -81,6 +81,7 @@ public class Lexer
                     case '^':
                     {
                         tokens.Add(new Token(Tokens.Exponent, null, (_pos, null)));
+                        Advance();
                         break;
                     }
                     case '(':

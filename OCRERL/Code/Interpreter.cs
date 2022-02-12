@@ -38,6 +38,7 @@ public class Interpreter
             Tokens.Subtract => left.SubtractedBy(right)!,
             Tokens.Multiply => left.MultipliedBy(right)!,
             Tokens.Divide => left.DividedBy(right)!,
+            Tokens.Exponent => left.Pow(right)!,
             _ => (null, new RuntimeError("Somehow, an Illegal Character was found!", node.OpToken.Pos, context)) //TODO: Figure out what to do when invalid Token was found
         };
 

@@ -17,11 +17,10 @@ public class Interpreter
         return method is not null ? method.Invoke(this, new object?[]{node, context}) : NoVisitMethod(node, context);
     }
 
-    private static object NoVisitMethod(Node node, Context context)
-    {
+    private static object NoVisitMethod(Node node, Context context) =>
         throw new Exception($"Visit Method Visit{node.GetType().Name} not found!");
-    }
 
+        //-> Arithmetic
     private RuntimeResult VisitBinaryOp(Node rawNode, Context context)
     {
         var res = new RuntimeResult();
@@ -31,6 +30,7 @@ public class Interpreter
         var left = (Number)res.Register(Visit(node.LeftNode, context)!)!;
         if (res.Error is not null) return res;
         var right = (Number)res.Register(Visit(node.RightNode, context)!)!;
+        if (res.Error is not null) return res;
 
         (Number? value, Error? error) opResult = node.OpToken.Type switch
         {
@@ -39,11 +39,12 @@ public class Interpreter
             Tokens.Multiply => left.MultipliedBy(right)!,
             Tokens.Divide => left.DividedBy(right)!,
             Tokens.Exponent => left.Pow(right)!,
-            _ => (null, new RuntimeError("Somehow, an Illegal Character was found!", node.OpToken.Pos, context)) //TODO: Figure out what to do when invalid Token was found
+            _ => (null, new RuntimeError("Somehow, an Illegal Character was found!", node.OpToken.Position, context)) //TODO: Figure out what to do when invalid Token was found
         };
 
-        if (opResult.error is not null) return res.Failure(opResult.error);
-        else return res.Success(opResult.value!.SetPosition(node.Position.Start, node.Position.End));
+        return opResult.error is not null
+            ? res.Failure(opResult.error)
+            : res.Success(opResult.value!.SetPosition(node.Position));
     }
 
     private RuntimeResult VisitUnaryOp(Node rawNode, Context context)
@@ -59,12 +60,53 @@ public class Interpreter
 
         if (node.OpToken.Type is Tokens.Subtract) opResult = number.MultipliedBy(new Number(-1))!;
         else opResult = (number, null);
-        
-        if (opResult.error is not null) return res.Failure(opResult.error);
-        else return res.Success(opResult.value!.SetPosition(node.Position.Start, node.Position.End));
+
+        return opResult.error is not null
+            ? res.Failure(opResult.error)
+            : res.Success(opResult.value!.SetPosition(node.Position));
     }
 
     private RuntimeResult VisitNumberNode(Node node, Context context) =>
         new RuntimeResult().Success(
-            new Number(node.Token.Value!).SetContext(context).SetPosition(node.Token.Pos.Start, node.Token.Pos.End));
+            new Number(node.Token.Value!).SetContext(context)
+                .SetPosition(node.Token.Position));
+    
+     //-> Variables
+     private RuntimeResult VisitVariableAccessNode(Node node, Context context)
+     {
+         var res = new RuntimeResult();
+         var variable = node.Token.Value!.ToString();
+         var result = context.Symbols!.Get(variable!);
+        
+         Console.WriteLine(typeof(object));
+
+         
+         if (result is null)
+             return res.Failure(new RuntimeError($"Variable '{variable}' has not been defined in this scope!'",
+                 node.Position!, context));
+         
+         return res.Success(result); //TODO: EP 4, Clone the Result
+     }
+
+     private RuntimeResult VisitVariableAssignNode(Node node, Context context)
+     {
+         var res = new RuntimeResult();
+         var variable = node.Token.Value!.ToString();
+         var value = res.Register(Visit(((VariableAssignNode) node).Value, context)!);
+
+         if (res.Error is not null) return res;
+
+         bool success;
+         if(((VariableAssignNode) node).Type is Keywords.Global)
+            success = context.Symbols!.SetGlobal(variable!, value!);
+         else if(((VariableAssignNode) node).Type is Keywords.Const)
+             success = context.Symbols!.Set(variable!, value!, true);
+         else
+             success = context.Symbols!.Set(variable!, value!);
+
+         if (success is false)
+             return res.Failure(new RuntimeError($"Variable '{variable}' has already been defined in this scope!",
+                 node.Position!, context));
+         return res.Success(value!);
+     }
 }

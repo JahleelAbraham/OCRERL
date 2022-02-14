@@ -9,6 +9,8 @@ public static class EntryPoint
     /* Entry Point */
     public static (Number? result, Error? error) Run(string code)
     {
+        var globalSymbolTable = new SymbolTable();
+        
         var lexer = new Lexer("OCRERL/Index.erl", code); //-> Initializes a new Lexer
         var lResult = lexer.Tokenize();
         
@@ -23,6 +25,7 @@ public static class EntryPoint
         var interpreter = new Interpreter();
 
         var context = new Context("<OCRERL>");
+        context.SetSymbolTable(globalSymbolTable);
         
         var result = (RuntimeResult) interpreter.Visit(ast.Node!, context)!;
 

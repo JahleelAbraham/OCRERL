@@ -1,5 +1,6 @@
 using OCRERL.Code.Definitions;
 using OCRERL.Code.Definitions.Errors;
+using OCRERL.Code.Definitions.Extensions;
 
 namespace OCRERL.Code;
 
@@ -8,8 +9,7 @@ public class Lexer
     private static string _code = ""; //TODO: Output 'Help' prompt by default
     private static string _filename = "<stdin>"; //-> The current file name, Default: '<stdin>'
 
-    private readonly Position
-        _pos = new(-1, 0, -1, _filename, _code); // Initializes the position to the beginning of the file
+    private readonly Position _pos; // Initializes the position to the beginning of the file
 
     private char _current = '\0'; //Initializes the current Character to 'null'
 
@@ -17,6 +17,8 @@ public class Lexer
     {
         _filename = filename;
         _code = text;
+        _pos = new Position(-1, 0, -1, _filename, _code);
+        
         Advance(); // Begins file analysis
     }
 
@@ -54,6 +56,11 @@ public class Lexer
                         tokens.Add(MakeNumber()); // Tokenizes and parses the Digit into a Int, Float or Real
                         break;
                     }
+                    case var a when char.IsLetter(a):
+                    {
+                        tokens.Add(MakeIdentifier());
+                        break;
+                    }
                     case '+':
                     {
                         tokens.Add(new Token(Tokens.Plus, null, (_pos, null))); // Tokenizes the Plus
@@ -84,6 +91,12 @@ public class Lexer
                         Advance();
                         break;
                     }
+                    case '=':
+                    {
+                        tokens.Add(new Token(Tokens.Equals, null, (_pos, null)));
+                        Advance();
+                        break;
+                    }
                     case '(':
                     {
                         tokens.Add(new Token(Tokens.LParenthesis, null,
@@ -102,8 +115,8 @@ public class Lexer
                     default: // Triggers if an unexpected character was reached
                     {
                         var startPos = (Position)_pos.Clone(); // Clones the current position
-                        var iChar = _current; // Takes note of Unexpected character
-                        return (new List<Token>(), new IllegalCharError(iChar, (startPos, _pos))); // Throws error
+                        Advance();
+                        return (new List<Token>(), new IllegalCharError((startPos, _pos))); // Throws error
                     }
                 }
             }
@@ -146,6 +159,20 @@ public class Lexer
         return dotCount == 0
             ? new Token(Tokens.Integer, int.Parse(str), (startPos, _pos))
             : new Token(Tokens.Float, float.Parse(str), (startPos, _pos));
+    }
+
+    private Token MakeIdentifier()
+    {
+        var identifier = "";
+        var posStart = (Position) _pos.Clone();
+
+        while (_current is not '\0' && char.IsLetterOrDigit(_current))
+        {
+            identifier += _current;
+            Advance();
+        }
+
+        return new Token(Enum.IsDefined(typeof(Keywords), identifier.Capitalize()) ? Tokens.Keyword : Tokens.Identifier, identifier, (posStart, _pos));
     }
 
 }

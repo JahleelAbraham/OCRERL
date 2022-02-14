@@ -1,6 +1,9 @@
 ﻿# OCR ERL Grammar Table
 
-Expression   : Term ((PLUS|SUBTRACT) Term)*
+Expression   : KEYWORD:GLOBAL IDENTIFIER EQUALS Expression
+             : KEYWORD:CONST  IDENTIFIER EQUALS Expression
+             : IDENTIFIER EQUALS Expression
+             : Term ((PLUS|SUBTRACT) Term)*
 
 Term         : Factor ((MULTIPLY|DIVIDE) Factor)*
 
@@ -9,5 +12,5 @@ Factor       : (PLUS|SUBTRACT) Factor
                        
 Indices      : Numeral (EXPONENT Factor)*
              
-Numeral      : INT|FLOAT
+Numeral      : INT|FLOAT|IDENTIFIER
              : LPARENTHESIS Expression RPARENTHESIS

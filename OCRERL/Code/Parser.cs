@@ -29,7 +29,7 @@ public class Parser
         var res = Expression();
 
         if (res.Error is null && CurrentToken!.Type is not Tokens.Eof)
-            return res.Failure(new InvalidSyntaxError("Expected '+', '-', '*', '^' or '/'", CurrentToken.Pos));
+            return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'", CurrentToken.Position));
 
         return res;
     }
@@ -45,6 +45,12 @@ public class Parser
             return res.Success(new NumberNode(token));
         }
 
+        if (token!.Type is Tokens.Identifier)
+        {
+            res.Register(Advance()!);
+            return res.Success(new VariableAccessNode(token));
+        }
+
         if (token!.Type is Tokens.LParenthesis)
         {
             res.Register(Advance()!);
@@ -58,12 +64,15 @@ public class Parser
                 return res.Success(expression.Node!);
             }
 
-            return res.Failure(new InvalidSyntaxError($"Expected ')'. Found {token}",
-                (token.Pos.Start, token.Pos.End)));
+            return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                (token.Position.Start, token.Position.End)));
         }
-        
-        return res.Failure(new InvalidSyntaxError($"Expected '+', '-' or '('. Found {token}",
-            (token.Pos.Start, token.Pos.End)));
+
+        return res.Failure(token!.Type is Tokens.Eof
+            ? new UnexpectedEOF($"Unexpected End of File",
+                (token.Position.Start, token.Position.End))
+            : new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                (token.Position.Start, token.Position.End)));
     }
 
     private ParserResult Indices() => BinOperation(Numeral, Factor, Tokens.Exponent);
@@ -91,7 +100,78 @@ public class Parser
 
     private ParserResult Term() => BinOperation(Factor, null, Tokens.Multiply, Tokens.Divide);
 
-    private ParserResult Expression() => BinOperation(Term, null, Tokens.Plus, Tokens.Subtract);
+    private ParserResult Expression()
+    {
+        var res = new ParserResult();
+        
+        if (CurrentToken!.Matches(Tokens.Keyword, Keywords.Global, true))
+        {
+            res.Register(Advance()!);
+
+            if (CurrentToken.Type is not Tokens.Identifier)
+                return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                    CurrentToken.Position));
+
+            var global = CurrentToken;
+             
+            res.Register(Advance()!);
+            
+            if (CurrentToken.Type is not Tokens.Equals)
+                return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                    CurrentToken.Position));
+
+            res.Register(Advance()!);
+
+            var expression = res.Register(Expression());
+            return res.Error is not null
+                ? res
+                : res.Success(new VariableAssignNode(Keywords.Global, global, expression.Node!));
+        }
+
+        if (CurrentToken!.Matches(Tokens.Keyword, Keywords.Const, true))
+        {
+            res.Register(Advance()!);
+
+            if (CurrentToken.Type is not Tokens.Identifier)
+                return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                    CurrentToken.Position));
+
+            var constant = CurrentToken;
+             
+            res.Register(Advance()!);
+            
+            if (CurrentToken.Type is not Tokens.Equals)
+                return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                    CurrentToken.Position));
+
+            res.Register(Advance()!);
+
+            var expression = res.Register(Expression());
+            return res.Error is not null
+                ? res
+                : res.Success(new VariableAssignNode(Keywords.Const, constant, expression.Node!));
+        }
+
+        if (CurrentToken!.Matches(Tokens.Identifier))
+        {
+            var variable = CurrentToken;
+            
+            res.Register(Advance()!);
+
+            if (CurrentToken.Type is not Tokens.Equals)
+                return res.Failure(new InvalidSyntaxError($"Unexpected token '{CurrentToken}'",
+                    CurrentToken.Position));
+
+            res.Register(Advance()!);
+
+            var expression = res.Register(Expression());
+            return res.Error is not null
+                ? res
+                : res.Success(new VariableAssignNode(Keywords.None, variable, expression.Node!));
+        }
+
+        return BinOperation(Term, null, Tokens.Plus, Tokens.Subtract);
+    }
 
     private ParserResult BinOperation(Func<ParserResult> funcA, Func<ParserResult>? funcB, params Tokens[] tokens)
     {

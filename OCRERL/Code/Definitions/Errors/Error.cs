@@ -1,3 +1,5 @@
+using OCRERL.Code.Definitions.Extensions;
+
 namespace OCRERL.Code.Definitions.Errors;
 
 public class Error
@@ -12,7 +14,7 @@ public class Error
     {
         var error  = $"{Name}: {Details}\n";
         error += $"\tat {Position.start.Filename}, Line {Position.start.Line + 1}:{Position.start.Column}";
-        //error += $"\n\n\t{StringWithArrows(Pos.start.FileContent, Pos.start, Pos.end)}";
+        error += $"\n\n\t{Position.start.FileContent.StringWithArrows(Position)}";
                 
         return error;
     }

@@ -8,9 +8,9 @@ public class Type<T> where T : Type<T>
     
     public Type(dynamic value) => Value = value;
 
-    public T SetPosition(Position? start = null, Position? end = null)
+    public T SetPosition((Position? start, Position? end) position)
     {
-        Position = (start, end);
+        Position = position;
         return (T) this;
     }
 
@@ -18,6 +18,11 @@ public class Type<T> where T : Type<T>
     {
         Context = context;
         return (T) this;
+    }
+
+    public Type<T> Clone()
+    {
+        return new Type<T>(Value).SetPosition(Position).SetContext(Context);
     }
 
     public override string ToString()

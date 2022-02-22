@@ -97,6 +97,34 @@ public class Lexer
                         Advance();
                         break;
                     }
+                    case 'M':
+                    {
+                        Advance();
+                        if (_current == 'O')
+                        {
+                            Advance();
+                            if (_current == 'D')
+                            {
+                                tokens.Add(new Token(Tokens.Modulus, null, (_pos, null)));
+                                Advance();
+                            }
+                        }
+                        break;
+                    }
+                    case 'D':
+                    {
+                        Advance();
+                        if (_current == 'I')
+                        {
+                            Advance();
+                            if (_current == 'V')
+                            {
+                                tokens.Add(new Token(Tokens.Quotient, null, (_pos, null)));
+                                Advance();
+                            }
+                        }
+                        break;
+                    }
                     case '(':
                     {
                         tokens.Add(new Token(Tokens.LParenthesis, null,
@@ -172,7 +200,7 @@ public class Lexer
             Advance();
         }
 
-        return new Token(Enum.IsDefined(typeof(Keywords), identifier.Capitalize()) ? Tokens.Keyword : Tokens.Identifier, identifier, (posStart, _pos));
+        return new Token(Enum.IsDefined(typeof(Keywords), identifier.Capitalize()) && identifier.IsAllLower() ? Tokens.Keyword : Tokens.Identifier, identifier, (posStart, _pos));
     }
 
 }

@@ -8,4 +8,8 @@ public static class Strings
                 word[..1].ToUpper() + word[1..].ToLower()
             )
         );
+
+    public static bool IsAllLower(this string text) => text.All(char.IsLower);
+
+    public static bool IsAllUpper(this string text) => text.All(char.IsUpper);
 }

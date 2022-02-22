@@ -51,6 +51,8 @@ public enum Tokens
     Multiply,
     Divide,
     Exponent,
+    Modulus,
+    Quotient,
 
     // Special Tokens
     LParenthesis,
